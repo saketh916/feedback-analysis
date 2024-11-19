@@ -4,6 +4,8 @@ import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 
+import RegisterPage from './pages/RegisterPage';
+
 const App = () => {
   return (
     <Router>
@@ -13,6 +15,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
           </Routes>
         </main>
         <footer className="bg-gray-800 text-white py-8">
