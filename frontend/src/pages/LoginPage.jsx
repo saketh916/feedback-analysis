@@ -14,6 +14,7 @@ const LoginPage = () => {
       alert(response.data.message);
       // Store token if needed
       localStorage.setItem('token', response.data.token);
+      localStorage.setItem('isLoggedIn', 'true'); // Add this line
       navigate('/'); // Redirect to home page
     } catch (err) {
       alert(err.response?.data?.message || 'Something went wrong');
