@@ -36,6 +36,8 @@ API_TOKEN = os.getenv("HF_API_TOKEN")
 API_URL = os.getenv("API_URL")
 headers = {"Authorization": f"Bearer {API_TOKEN}"}
 
+print("API Token:", API_TOKEN)
+print("API URL:", API_URL)
 
 def generate_review_summary(reviews):
     try:

@@ -12,10 +12,15 @@ const LoginPage = () => {
     try {
       const response = await axios.post('http://localhost:5005/api/login', { email, password });
       alert(response.data.message);
+      console.log('Login response:', response.data);
       // Store token if needed
       localStorage.setItem('token', response.data.token);
-      localStorage.setItem('isLoggedIn', 'true'); // Add this line
-      navigate('/'); // Redirect to home page
+      localStorage.setItem('userEmail', response.data.email);
+      localStorage.setItem('isLoggedIn', 'true');
+      window.dispatchEvent(new Event('storage'));
+      navigate('/');
+      // window.Location.reload();
+      
     } catch (err) {
       alert(err.response?.data?.message || 'Something went wrong');
     }

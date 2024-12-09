@@ -3,12 +3,16 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const dotenv = require('dotenv');
+dotenv.config({ path: '../.env' });
 
-// MongoDB Connection String
-const mongoURI = 'mongodb+srv://gokulkashyap:qgy1HvKP6czfbP5M@cluster0.y4zcu.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+
 
 // Models
-const User = require('./models/User'); 
+const User = require('./models/User');
+
+const SearchHistory = require('./models/SearchHistory');
+
 
 // Express App Setup
 const app = express();
@@ -17,10 +21,21 @@ app.use(express.json());
 
 // Connect to MongoDB
 mongoose
-  .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .connect(process.env.mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('MongoDB connection error:', err));
 
+const authenticate = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Unauthorized' });
+
+  jwt.verify(token, 'secret', (err, decoded) => {
+    if (err) return res.status(401).json({ message: 'Unauthorized' });
+
+    req.user = decoded;
+    next();
+  });
+};
 // Routes
 // Registration Route
 app.post('/api/register', async (req, res) => {
@@ -65,29 +80,50 @@ app.post('/api/login', async (req, res) => {
     // Generate JWT Token
     const token = jwt.sign({ id: user._id, email: user.email }, 'secret', { expiresIn: '1h' });
 
-    res.status(200).json({ message: 'Login successful', token });
+    res.status(200).json({ message: 'Login successful', token, email: user.email });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
 
-// Middleware for authentication
-const authenticate = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'Unauthorized' });
+//search_history route
+app.post('/api/search-history', authenticate, async (req, res) => {
+  const { searchUrl, searchResponse } = req.body;
+  const userEmail = req.user.email;
 
-  jwt.verify(token, 'secret', (err, decoded) => {
-    if (err) return res.status(401).json({ message: 'Unauthorized' });
+  try {
+    const searchRecord = new SearchHistory({
+      userEmail,
+      searchUrl,
+      searchResponse
+    });
+    await searchRecord.save();
+    res.status(201).json({ message: 'Search history saved successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error saving search history' });
+  }
+});
 
-    req.user = decoded;
-    next();
-  });
-};
+app.get('/api/search-history', authenticate, async (req, res) => {
+  const userEmail = req.user.email;
+  try {
+    const history = await SearchHistory.find({ userEmail }).sort({ timestamp: -1 });
+    res.json(history);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching search history' });
+  }
+});
+
 
 // Protected Route Example
 app.get('/api/home', authenticate, (req, res) => {
   res.status(200).json({ message: 'Welcome to the home page!', user: req.user });
+});
+
+app.get('/api/user-profile', authenticate, (req, res) => {
+  const userEmail = req.user.email;
+  res.json({ email: userEmail });
 });
 
 // Start the Server

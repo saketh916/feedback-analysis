@@ -15,6 +15,7 @@ export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  const [userEmail, setUserEmail] = useState(localStorage.getItem('userEmail'));
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -22,6 +23,11 @@ export default function Navbar() {
     localStorage.removeItem('userEmail');
     navigate('/login');
   };
+
+  //const userEmail = localStorage.getItem('userEmail');
+  useEffect(() => {
+    setUserEmail(localStorage.getItem('userEmail'));
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -62,15 +68,26 @@ export default function Navbar() {
                 {item.name}
               </Link>
             ))}
+            {isLoggedIn && (
+              <Link
+                to="/history"
+                className="text-gray-500 hover:text-primary transition-colors"
+              >
+                Search History
+              </Link>
+            )}
           </nav>
           <div className="hidden md:flex items-center">
             {isLoggedIn ? (
-              <button
-                onClick={handleLogout}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
-              >
-                Log out
-              </button>
+              <div className="hidden md:flex items-center space-x-4">
+                <span className="text-gray-600">{userEmail}</span>
+                <button
+                  onClick={handleLogout}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
+                >
+                  Log out
+                </button>
+              </div>
             ) : (
               <Link
                 to="/login"
@@ -109,6 +126,15 @@ export default function Navbar() {
                 {item.name}
               </Link>
             ))}
+            {isLoggedIn && (
+              <Link
+                to="/history"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setIsOpen(false)}
+              >
+                Search History
+              </Link>
+            )}
           </div>
           <div className="pt-4 pb-3 border-t border-gray-200">
             {isLoggedIn ? (

@@ -6,7 +6,12 @@ import LoginPage from './pages/LoginPage';
 
 import RegisterPage from './pages/RegisterPage';
 
+import SearchHistory from './pages/HistoryPage';
+import { Navigate } from 'react-router-dom';
+
+
 const App = () => {
+  const isLoggedIn = localStorage.getItem('isLoggedIn');
   return (
     <Router>
       <div className="min-h-screen flex flex-col bg-gray-50">
@@ -16,6 +21,8 @@ const App = () => {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/history" element={isLoggedIn ? <SearchHistory /> : <Navigate to="/login" />}
+            />
           </Routes>
         </main>
         <footer className="bg-gray-800 text-white py-8">

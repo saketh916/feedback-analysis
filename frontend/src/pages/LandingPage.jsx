@@ -50,23 +50,38 @@ export default function LandingPage() {
     setKeyphrases([]);
     setOverallSentiment('');
     setSummary('');
+
+    const userEmail = localStorage.getItem('userEmail');
+
     try {
-        const response = await axios.post('http://localhost:5000/scrape', {
-            productUrl: url
-        });
-        setReviews(response.data.reviews);
-        setKeyphrases(response.data.keyphrases);
-        setOverallSentiment(response.data.overall_sentiment);
-        setSummary(response.data.summary);
-        setMessage(response.data.message || `Successfully analyzed ${response.data.total_reviews} reviews.`);
+      const response = await axios.post('http://localhost:5000/scrape', {
+        productUrl: url
+      });
+
+      // Store search data with user email
+      await axios.post('http://localhost:5005/api/search-history', {
+        userEmail: userEmail,
+        searchUrl: url,
+        searchResponse: response.data
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      setReviews(response.data.reviews);
+      setKeyphrases(response.data.keyphrases);
+      setOverallSentiment(response.data.overall_sentiment);
+      setSummary(response.data.summary);
+      setMessage(response.data.message || `Successfully analyzed ${response.data.total_reviews} reviews.`);
     } catch (error) {
-        const errorMessage = error.response?.data?.message || 'Failed to analyze reviews. Please try again.';
-        setMessage(errorMessage);
-        console.log('Error details:', error.response?.data?.error_details);
+      const errorMessage = error.response?.data?.message || 'Failed to analyze reviews. Please try again.';
+      setMessage(errorMessage);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
+  };
+
   return (
     <div className="bg-gray-50">
       {/* Hero Section */}
@@ -135,41 +150,41 @@ export default function LandingPage() {
       </div>
 
       {summary && (
-  <div className="bg-white py-8">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">Review Summary</h2>
-      <p className="text-gray-700 text-lg">{summary}</p>
-    </div>
-  </div>
-)}
+        <div className="bg-white py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Review Summary</h2>
+            <p className="text-gray-700 text-lg">{summary}</p>
+          </div>
+        </div>
+      )}
 
       {keyphrases && keyphrases.length > 0 && (
-  <div className="bg-white py-8">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">Key Phrases</h2>
-      <div className="flex flex-wrap gap-2">
-        {keyphrases.map((phrase, index) => (
-          <span
-            key={index}
-            className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800"
-          >
-            {phrase}
-          </span>
-        ))}
-      </div>
-    </div>
-  </div>
-)}
+        <div className="bg-white py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Key Phrases</h2>
+            <div className="flex flex-wrap gap-2">
+              {keyphrases.map((phrase, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800"
+                >
+                  {phrase}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {overallSentiment && (
-  <div className="bg-white py-8">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">Overall Sentiment</h2>
-      <span className="inline-flex items-center px-4 py-2 rounded-full text-lg font-medium bg-indigo-100 text-indigo-800">
-        {overallSentiment}
-      </span>
-    </div>
-  </div>
-)}
+        <div className="bg-white py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Overall Sentiment</h2>
+            <span className="inline-flex items-center px-4 py-2 rounded-full text-lg font-medium bg-indigo-100 text-indigo-800">
+              {overallSentiment}
+            </span>
+          </div>
+        </div>
+      )}
 
 
 
@@ -262,7 +277,7 @@ export default function LandingPage() {
                   <img className="h-12 w-12 rounded-full mr-4" src={testimonial.image} alt={testimonial.name} />
                   <div>
                     <h3 className="text-lg font-medium text-gray-900">{testimonial.name}</h3>
-                    <p  className="text-indigo-600">{testimonial.role}</p>
+                    <p className="text-indigo-600">{testimonial.role}</p>
                   </div>
                 </div>
                 <p className="text-gray-600 italic">"{testimonial.quote}"</p>

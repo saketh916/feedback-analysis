@@ -66,26 +66,6 @@ def generate_review_summary(reviews):
         print(f"Error generating summary: {str(e)}")
         return "Unable to create summary"
 
-
-# summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-# # summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-6-6")
-
-
-# def generate_review_summary(reviews):
-#     combined_reviews = " ".join(reviews)
-#     review_word_count = len(combined_reviews.split())
-#     max_length = min(150, review_word_count // 2)
-#     min_length = max(40, max_length // 2)
-
-#     if len(combined_reviews.split()) > 1024:
-#         combined_reviews = " ".join(combined_reviews.split()[:1024])
-
-#     summary = summarizer(
-#         combined_reviews, max_length=max_length, min_length=min_length, do_sample=False
-#     )[0]["summary_text"]
-#     return summary
-
-
 def extract_noun_phrases(text):
     doc = nlp(text)
     noun_phrases = []
@@ -165,7 +145,7 @@ def get_reviews_ratings(browser, url):
     sleep(3)
 
     try:
-        for _ in range(3):
+        for _ in range(2):
             review_elements = browser.find_elements(
                 By.CSS_SELECTOR, 'span[data-hook="review-body"]'
             )
@@ -228,76 +208,6 @@ def apply_sentiment_analysis(reviews_df, model, tfidf_vectorizer, label_encoder)
 
 
 model, tfidf_vectorizer, label_encoder = load_model()
-
-
-# @app.route("/scrape", methods=["POST"])
-# def scrape():
-#     data = request.json
-#     product_url = data.get("productUrl")
-
-#     if not product_url:
-#         return jsonify({"status": "error", "message": "No product URL provided"}), 400
-
-#     try:
-#         browser = setup_browser()
-#         reviews = get_reviews_ratings(browser, product_url)
-#         reviews_df = pd.DataFrame(reviews)
-
-#         if reviews_df.empty:
-#             return jsonify(
-#                 {
-#                     "status": "warning",
-#                     "message": "No reviews found",
-#                     "reviews": [],
-#                     "total_reviews": 0,
-#                     "overall_sentiment": None,
-#                     "keyphrases": [],
-#                     "summary": "",
-#                 }
-#             )
-
-#         all_reviews_text = " ".join(reviews_df["review_text"].fillna("").tolist())
-#         keyphrases = extract_keyphrases(all_reviews_text, top_n=10)
-#         reviews_df["review_text"] = reviews_df["review_text"].fillna("")
-#         reviews_df = reviews_df[reviews_df["review_text"].str.strip().str.len() > 0]
-
-#         reviews_df, overall_sentiment = apply_sentiment_analysis(
-#             reviews_df, model, tfidf_vectorizer, label_encoder
-#         )
-#         results = reviews_df.to_dict(orient="records")
-
-#         review_summary = generate_review_summary(reviews_df["review_text"].tolist())
-
-#         response_data = {
-#             "status": "success",
-#             "reviews": results,
-#             "total_reviews": len(results),
-#             "keyphrases": keyphrases,
-#             "overall_sentiment": str(overall_sentiment),
-#             "summary": review_summary,
-#             "message": f"Successfully analyzed {len(results)} reviews",
-#         }
-
-#         return jsonify(response_data)
-
-#     except Exception as e:
-#         return (
-#             jsonify(
-#                 {
-#                     "status": "error",
-#                     "message": "Failed to process reviews. Please check the URL and try again.",
-#                     "error_details": str(e),
-#                     "overall_sentiment": None,
-#                     "summary": "",
-#                 }
-#             ),
-#             500,
-#         )
-
-#     finally:
-#         if "browser" in locals():
-#             browser.quit()
-
 
 @app.route("/scrape", methods=["POST"])
 def scrape():
