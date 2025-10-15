@@ -1,46 +1,28 @@
-import React, { useState } from 'react'
-import axios from 'axios'
-import { ChartBarIcon, ChatBubbleBottomCenterTextIcon, BoltIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
-import { Link } from 'react-router-dom'
+import React, { useState } from 'react';
+import axios from 'axios';
+import { ChartBarIcon, ChatBubbleBottomCenterTextIcon, BoltIcon } from '@heroicons/react/24/outline';
+import { Link } from 'react-router-dom';
+
 const features = [
-  {
-    name: 'Advanced Analytics',
-    description: 'Get deep insights into customer sentiment and key topics.',
-    icon: ChartBarIcon,
-  },
-  {
-    name: 'Real-time Processing',
-    description: 'Analyze feedback as it comes in, staying ahead of trends.',
-    icon: BoltIcon,
-  },
-  {
-    name: 'AI-Powered Summaries',
-    description: 'Generate concise, actionable summaries from complex feedback.',
-    icon: ChatBubbleBottomCenterTextIcon,
-  },
-]
+  { name: 'Advanced Analytics', description: 'Get deep insights into customer sentiment and key topics.', icon: ChartBarIcon },
+  { name: 'Real-time Processing', description: 'Analyze feedback as it comes in, staying ahead of trends.', icon: BoltIcon },
+  { name: 'AI-Powered Summaries', description: 'Generate concise, actionable summaries from complex feedback.', icon: ChatBubbleBottomCenterTextIcon },
+];
+
 const testimonials = [
-  {
-    name: 'Sarah Johnson',
-    role: 'Product Manager at TechCorp',
-    image: '/sarah.jpeg',
-    quote: 'This tool has revolutionized how we handle customer feedback. It is like having a team of analysts working 24/7.',
-  },
-  {
-    name: 'Michael Chen',
-    role: 'CEO of E-commerce Solutions',
-    image: '/michael.jpeg',
-    quote: 'The insights we have gained have directly contributed to a 30% increase in customer satisfaction scores.',
-  },
-]
+  { name: 'Sarah Johnson', role: 'Product Manager at TechCorp', image: '/sarah.jpeg', quote: 'This tool has revolutionized how we handle customer feedback. It is like having a team of analysts working 24/7.' },
+  { name: 'Michael Chen', role: 'CEO of E-commerce Solutions', image: '/michael.jpeg', quote: 'The insights we have gained have directly contributed to a 30% increase in customer satisfaction scores.' },
+];
+
 export default function LandingPage() {
-  const [url, setUrl] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
-  const [reviews, setReviews] = useState([])
+  const [url, setUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [reviews, setReviews] = useState([]);
   const [keyphrases, setKeyphrases] = useState([]);
   const [overallSentiment, setOverallSentiment] = useState('');
   const [summary, setSummary] = useState('');
+  const [expandedReviews, setExpandedReviews] = useState([]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -54,26 +36,25 @@ export default function LandingPage() {
     const userEmail = localStorage.getItem('userEmail');
 
     try {
-      const response = await axios.post('http://localhost:5000/scrape', {
-        productUrl: url
-      });
+      const response = await axios.post('http://3.101.105.197:7860//scrape', { productUrl: url });
 
-      // Store search data with user email
-      await axios.post('http://localhost:5005/api/search-history', {
-        userEmail: userEmail,
-        searchUrl: url,
-        searchResponse: response.data
-      }, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      await axios.post(
+        'https://fdb-node.vercel.app/api/search-history',
+        {
+          userEmail,
+          searchUrl: url,
+          searchResponse: response.data,
+        },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         }
-      });
+      );
 
-      setReviews(response.data.reviews);
-      setKeyphrases(response.data.keyphrases);
-      setOverallSentiment(response.data.overall_sentiment);
-      setSummary(response.data.summary);
-      setMessage(response.data.message || `Successfully analyzed ${response.data.total_reviews} reviews.`);
+      setReviews(response.data.reviews || []);
+      setKeyphrases(response.data.keyphrases || []);
+      setOverallSentiment(response.data.overall_sentiment || '');
+      setSummary(response.data.summary || '');
+      setMessage(response.data.message || `Successfully analyzed ${response.data.total_reviews || 0} reviews.`);
     } catch (error) {
       const errorMessage = error.response?.data?.message || 'Failed to analyze reviews. Please try again.';
       setMessage(errorMessage);
@@ -120,22 +101,37 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
+
       {/* URL Input Section */}
       <div className="bg-gray-100 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto">
-            <form onSubmit={handleSubmit} className="mt-8 sm:flex">
-              <label htmlFor="url" className="sr-only">Product URL</label>
-              <input
-                type="text"
-                name="url"
-                id="url"
-                className="block w-full py-3 px-3 text-base rounded-md placeholder-gray-500 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:flex-1 border-gray-300"
-                placeholder="Enter product URL"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                required
-              />
+            <form onSubmit={handleSubmit} className="mt-8 sm:flex relative">
+              <label htmlFor="url" className="sr-only">
+                Product URL
+              </label>
+              <div className="relative w-full">
+                <input
+                  type="text"
+                  name="url"
+                  id="url"
+                  className="block w-full py-3 px-3 text-base rounded-md placeholder-gray-500 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 border-gray-300 pr-10"
+                  placeholder="Enter product URL"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  required
+                />
+                {url && (
+                  <button
+                    type="button"
+                    onClick={() => setUrl('')}
+                    className="absolute inset-y-0 right-0 px-3 flex items-center text-black-400 hover:text-black-800"
+                  >
+                    X
+                  </button>
+                )}
+              </div>
+
               <button
                 type="submit"
                 className="mt-3 w-full px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:flex-shrink-0 sm:inline-flex sm:items-center sm:w-auto"
@@ -149,6 +145,8 @@ export default function LandingPage() {
         </div>
       </div>
 
+
+      {/* Summary */}
       {summary && (
         <div className="bg-white py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -158,7 +156,8 @@ export default function LandingPage() {
         </div>
       )}
 
-      {keyphrases && keyphrases.length > 0 && (
+      {/* Key Phrases */}
+      {keyphrases?.length > 0 && (
         <div className="bg-white py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Key Phrases</h2>
@@ -175,6 +174,8 @@ export default function LandingPage() {
           </div>
         </div>
       )}
+
+      {/* Overall Sentiment */}
       {overallSentiment && (
         <div className="bg-white py-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -186,27 +187,48 @@ export default function LandingPage() {
         </div>
       )}
 
-
-
-
-      {/* Display Reviews */}
-      {reviews.length > 0 && (
+      {/* Reviews */}
+      {reviews?.length > 0 && (
         <div className="bg-white py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl font-extrabold text-gray-900 mb-6">Analyzed Reviews</h2>
             <div className="grid gap-6 lg:grid-cols-2">
-              {reviews.map((review, index) => (
-                <div key={index} className="bg-gray-50 rounded-lg shadow p-6">
-                  <p className="text-sm text-gray-600 mb-2">Rating: {review.rating}</p>
-                  {/*<p className="text-sm font-semibold text-indigo-600 mb-2">Sentiment: {review.predicted_sentiment}</p>*/}
-                  <p className='text-sm font-bold mb-2'>{review.review_title}</p>
-                  <p className="text-gray-800">{review.review_text}</p>
-                </div>
-              ))}
+              {reviews.map((review, index) => {
+                const reviewText = review?.review_text ?? 'No review';
+                const shortText = reviewText.slice(0, 300);
+                const expanded = expandedReviews[index] || false;
+
+                const toggleExpand = () => {
+                  const newExpanded = [...expandedReviews];
+                  newExpanded[index] = !newExpanded[index];
+                  setExpandedReviews(newExpanded);
+                };
+
+                return (
+                  <div key={index} className="bg-gray-50 rounded-lg shadow p-6">
+                    <p className="text-sm text-gray-600 mb-2">Rating: {review?.rating ?? 'N/A'}</p>
+                    <p className="text-sm font-bold mb-2">{review?.review_title ?? 'No title'}</p>
+                    <p className="text-gray-800 mb-2">
+                      {expanded ? reviewText : shortText}
+                      {reviewText.length > 300 && !expanded ? '...' : ''}
+                    </p>
+                    {reviewText.length > 300 && (
+                      <button
+                        className="text-indigo-600 font-medium text-sm hover:underline"
+                        onClick={toggleExpand}
+                        type="button"
+                      >
+                        {expanded ? 'Show Less' : 'Read More'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
       )}
+
       {/* Features Section */}
       <div id="features" className="py-12 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -236,36 +258,7 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
-      {/* How It Works Section */}
-      <div id="how-it-works" className="py-12 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="lg:text-center">
-            <h2 className="text-base text-indigo-600 font-semibold tracking-wide uppercase">How It Works</h2>
-            <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-              Simplifying Feedback Analysis
-            </p>
-          </div>
-          <div className="mt-10">
-            <div className="flex flex-col md:flex-row justify-around items-center">
-              <div className="flex flex-col items-center mb-8 md:mb-0">
-                <MagnifyingGlassIcon className="h-12 w-12 text-indigo-500 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">1. Input URL</h3>
-                <p className="text-gray-500 text-center">Enter the product page URL</p>
-              </div>
-              <div className="flex flex-col items-center mb-8 md:mb-0">
-                <BoltIcon className="h-12 w-12 text-indigo-500 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">2. AI Analysis</h3>
-                <p className="text-gray-500 text-center">Our AI processes the feedback</p>
-              </div>
-              <div className="flex flex-col items-center">
-                <ChatBubbleBottomCenterTextIcon className="h-12 w-12 text-indigo-500 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">3. Get Insights</h3>
-                <p className="text-gray-500 text-center">Receive a comprehensive summary</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+
       {/* Testimonials Section */}
       <div id="testimonials" className="bg-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -286,25 +279,6 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
-      {/* CTA Section */}
-      <div className="bg-indigo-700">
-        <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8 lg:flex lg:items-center lg:justify-between">
-          <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-            <span className="block">Ready to dive in?</span>
-            <span className="block text-indigo-200">Start analyzing your feedback today.</span>
-          </h2>
-          <div className="mt-8 flex lg:mt-0 lg:flex-shrink-0">
-            <div className="inline-flex rounded-md shadow">
-              <Link
-                to="/login"
-                className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 bg-white hover:bg-indigo-50"
-              >
-                Get started
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
-};
+}

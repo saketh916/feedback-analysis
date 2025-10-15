@@ -18,7 +18,7 @@ const HistoryPage = () => {
             }
 
             try {
-                const response = await axios.get('http://localhost:5005/api/search-history', {
+                const response = await axios.get('https://fdb-node.vercel.app/api/search-history', {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
