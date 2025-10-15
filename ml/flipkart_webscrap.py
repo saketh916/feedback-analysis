@@ -31,10 +31,10 @@ warnings.filterwarnings("ignore", category=ResourceWarning)
 nlp = spacy.load("en_core_web_sm")
 tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 bert_model = AutoModel.from_pretrained("bert-base-uncased")
-
-API_TOKEN = os.getenv("HF_API_TOKEN")
-API_URL = os.getenv("API_URL")
+API_TOKEN = "REMOVED_TOKEN"
+API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
 headers = {"Authorization": f"Bearer {API_TOKEN}"}
+
 
 print("API Token:", API_TOKEN)
 print("API URL:", API_URL)
@@ -309,4 +309,4 @@ def scrape():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=7860)
