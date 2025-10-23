@@ -1,45 +1,59 @@
-#flipkart webscrap 
+# ---------------------------
+# Feedback Analysis API
+# ---------------------------
+
 from flask import Flask, request, jsonify
+from flask_cors import CORS
+import os
+import warnings
 import torch
 import torch.nn as nn
 import joblib
 import pandas as pd
-from selenium import webdriver
-from time import sleep
+import spacy
+import numpy as np
+from statistics import mode
+from sklearn.metrics.pairwise import cosine_similarity
+from transformers import AutoTokenizer, AutoModel
+from dotenv import load_dotenv
+import requests
+import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
-import random
-import warnings
-import undetected_chromedriver as uc
-from flask_cors import CORS
-import spacy
-from transformers import AutoTokenizer, AutoModel
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
-from statistics import mode
-import requests
-from dotenv import load_dotenv
-import os
+from time import sleep
 
+# ---------------------------
+# Load environment variables
+# ---------------------------
 load_dotenv()
+API_TOKEN = os.getenv("HF_API_TOKEN")
+API_URL = os.getenv("API_URL")
+BACKEND_API_URL = os.getenv("BACKEND_API_URL")
+
+# ---------------------------
+# Flask App Setup
+# ---------------------------
 app = Flask(__name__)
 CORS(app)
 warnings.filterwarnings("ignore", category=ResourceWarning)
 
+# ---------------------------
+# NLP Setup
+# ---------------------------
 nlp = spacy.load("en_core_web_sm")
 tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 bert_model = AutoModel.from_pretrained("bert-base-uncased")
-API_TOKEN = "REMOVED_TOKEN"
-API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
+
 headers = {"Authorization": f"Bearer {API_TOKEN}"}
 
-
-print("API Token:", API_TOKEN)
-print("API URL:", API_URL)
+# ---------------------------
+# Helper Functions
+# ---------------------------
 
 def generate_review_summary(reviews):
+    """Generate a summary for a list of reviews using Hugging Face API."""
     try:
         combined_reviews = " ".join(reviews)
         review_word_count = len(combined_reviews.split())
@@ -48,6 +62,7 @@ def generate_review_summary(reviews):
 
         if len(combined_reviews.split()) > 1024:
             combined_reviews = " ".join(combined_reviews.split()[:1024])
+
         payload = {
             "inputs": combined_reviews,
             "parameters": {
@@ -56,26 +71,27 @@ def generate_review_summary(reviews):
                 "do_sample": False,
             },
         }
+
         response = requests.post(API_URL, headers=headers, json=payload)
-        summary = response.json()[0]["summary_text"]
+
         if response.status_code == 200:
-            return summary
+            return response.json()[0]["summary_text"]
         else:
             return "Unable to create summary"
+
     except Exception as e:
         print(f"Error generating summary: {str(e)}")
         return "Unable to create summary"
 
 
 def extract_noun_phrases(text):
+    """Extract noun phrases from text using spaCy."""
     doc = nlp(text)
-    noun_phrases = []
-    for chunk in doc.noun_chunks:
-        noun_phrases.append(chunk.text)
-    return noun_phrases
+    return [chunk.text for chunk in doc.noun_chunks]
 
 
 def get_bert_embedding(text):
+    """Generate BERT embedding for a given text."""
     inputs = tokenizer(
         text, return_tensors="pt", padding=True, truncation=True, max_length=512
     )
@@ -85,6 +101,7 @@ def get_bert_embedding(text):
 
 
 def extract_keyphrases(text, top_n=5):
+    """Extract top N keyphrases from text using cosine similarity with BERT embeddings."""
     noun_phrases = extract_noun_phrases(text)
     if not noun_phrases:
         return []
@@ -92,10 +109,12 @@ def extract_keyphrases(text, top_n=5):
     phrase_embeddings = [get_bert_embedding(phrase) for phrase in noun_phrases]
     similarities = cosine_similarity([doc_embedding], phrase_embeddings)[0]
     sorted_indices = np.argsort(similarities)[::-1]
-    top_keyphrases = [noun_phrases[i] for i in sorted_indices[:top_n]]
-    return top_keyphrases
+    return [noun_phrases[i] for i in sorted_indices[:top_n]]
 
 
+# ---------------------------
+# Sentiment Analysis Model
+# ---------------------------
 class SentimentModel(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim):
         super(SentimentModel, self).__init__()
@@ -127,6 +146,9 @@ def load_model(
     return model, tfidf_vectorizer, label_encoder
 
 
+# ---------------------------
+# Web Scraping Functions
+# ---------------------------
 def setup_browser():
     options = uc.ChromeOptions()
     options.add_argument("--headless")
@@ -135,12 +157,14 @@ def setup_browser():
     options.add_argument("--no-sandbox")
     options.add_argument("--window-size=1920,1080")
     options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     )
     return uc.Chrome(options=options)
 
 
 def get_reviews_ratings(browser, url):
+    """Scrape reviews, ratings, and titles from Flipkart product page."""
     reviews = {"review_text": [], "rating": [], "review_title": []}
     browser.get(url)
     sleep(3)
@@ -148,19 +172,16 @@ def get_reviews_ratings(browser, url):
     try:
         wait = WebDriverWait(browser, 20)
 
+        # Click "All Reviews" if present
         try:
             all_reviews_button = wait.until(
                 EC.element_to_be_clickable(
-                    (
-                        By.XPATH,
-                        '//div[@class="_23J90q RcXBOT"]/span[contains(text(),"All")]',
-                    )
+                    (By.XPATH, '//div[@class="_23J90q RcXBOT"]/span[contains(text(),"All")]')
                 )
             )
             all_reviews_button.click()
             sleep(3)
         except:
-
             all_reviews_link = wait.until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, "div.col.pPAw9M a"))
             )
@@ -172,9 +193,7 @@ def get_reviews_ratings(browser, url):
             review_elements = browser.find_elements(By.CLASS_NAME, "ZmyHeo")
             for review in review_elements:
                 try:
-                    review_text = review.find_element(
-                        By.CSS_SELECTOR, "div div"
-                    ).text.strip()
+                    review_text = review.find_element(By.CSS_SELECTOR, "div div").text.strip()
                     reviews["review_text"].append(review_text)
                 except:
                     continue
@@ -194,10 +213,7 @@ def get_reviews_ratings(browser, url):
             try:
                 next_button = wait.until(
                     EC.element_to_be_clickable(
-                        (
-                            By.XPATH,
-                            '//a[@class="_9QVEpD"]/span[contains(text(),"Next")]',
-                        )
+                        (By.XPATH, '//a[@class="_9QVEpD"]/span[contains(text(),"Next")]')
                     )
                 )
                 browser.execute_script("arguments[0].scrollIntoView();", next_button)
@@ -210,18 +226,17 @@ def get_reviews_ratings(browser, url):
     except Exception as e:
         print(f"Scraping stopped: {e}")
 
-    min_length = min(
-        len(reviews["review_text"]),
-        len(reviews["rating"]),
-        len(reviews["review_title"]),
-    )
-    reviews["review_text"] = reviews["review_text"][:min_length]
-    reviews["rating"] = reviews["rating"][:min_length]
-    reviews["review_title"] = reviews["review_title"][:min_length]
+    # Trim lists to the same length
+    min_length = min(len(reviews["review_text"]), len(reviews["rating"]), len(reviews["review_title"]))
+    for key in reviews:
+        reviews[key] = reviews[key][:min_length]
 
     return reviews
 
 
+# ---------------------------
+# Sentiment Analysis
+# ---------------------------
 def apply_sentiment_analysis(reviews_df, model, tfidf_vectorizer, label_encoder):
     review_features = tfidf_vectorizer.transform(reviews_df["review_text"])
     review_tensor = torch.tensor(review_features.toarray(), dtype=torch.float32)
@@ -236,9 +251,15 @@ def apply_sentiment_analysis(reviews_df, model, tfidf_vectorizer, label_encoder)
     return reviews_df, overall_sentiment
 
 
+# ---------------------------
+# Load ML Model
+# ---------------------------
 model, tfidf_vectorizer, label_encoder = load_model()
 
 
+# ---------------------------
+# API Route
+# ---------------------------
 @app.route("/scrape", methods=["POST"])
 def scrape():
     data = request.json
@@ -265,6 +286,7 @@ def scrape():
                 }
             )
 
+        # Extract keyphrases and sentiment
         all_reviews_text = " ".join(reviews_df["review_text"].fillna("").tolist())
         keyphrases = extract_keyphrases(all_reviews_text, top_n=10)
         reviews_df["review_text"] = reviews_df["review_text"].fillna("")
@@ -290,23 +312,23 @@ def scrape():
         return jsonify(response_data)
 
     except Exception as e:
-        return (
-            jsonify(
-                {
-                    "status": "error",
-                    "message": "Failed to process reviews. Please check the URL and try again.",
-                    "error_details": str(e),
-                    "overall_sentiment": None,
-                    "summary": "",
-                }
-            ),
-            500,
-        )
+        return jsonify(
+            {
+                "status": "error",
+                "message": "Failed to process reviews. Please check the URL and try again.",
+                "error_details": str(e),
+                "overall_sentiment": None,
+                "summary": "",
+            }
+        ), 500
 
     finally:
         if "browser" in locals():
             browser.quit()
 
 
+# ---------------------------
+# Run Flask App
+# ---------------------------
 if __name__ == "__main__":
     app.run(debug=True, port=7860)
