@@ -23,11 +23,29 @@ const App = () => {
 
         <main className="flex-grow">
           <Routes>
-            <Route path="/" element={isLoggedIn ? <Navigate to="/home" /> : <Navigate to="/login" />} />
-            <Route path="/login" element={isLoggedIn ? <Navigate to="/home" /> : <LoginPage setIsLoggedIn={setIsLoggedIn} />} />
-            <Route path="/register" element={isLoggedIn ? <Navigate to="/home" /> : <RegisterPage />} />
+            {/* Direct access to Login Page if not logged in */}
+            <Route 
+              path="/" 
+              element={isLoggedIn ? <Navigate to="/home" /> : <LoginPage setIsLoggedIn={setIsLoggedIn} />} 
+            />
+            
+            {/* Login Route (redirects to home if already logged in) */}
+            <Route 
+              path="/login" 
+              element={isLoggedIn ? <Navigate to="/home" /> : <LoginPage setIsLoggedIn={setIsLoggedIn} />} 
+            />
+            
+            {/* 🔑 MODIFIED: Pass setIsLoggedIn to RegisterPage */}
+            <Route 
+              path="/register" 
+              element={isLoggedIn ? <Navigate to="/home" /> : <RegisterPage setIsLoggedIn={setIsLoggedIn} />} 
+            />
+            
+            {/* Protected Routes */}
             <Route path="/home" element={isLoggedIn ? <LandingPage /> : <Navigate to="/login" />} />
             <Route path="/history" element={isLoggedIn ? <SearchHistory /> : <Navigate to="/login" />} />
+            
+            {/* Catch-all route */}
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>

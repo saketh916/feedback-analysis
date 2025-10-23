@@ -36,7 +36,10 @@ export default function LandingPage() {
     const userEmail = localStorage.getItem('userEmail');
 
     try {
-      const response = await axios.post('http://3.101.105.197:7860//scrape', { productUrl: url });
+      const HF_SPACE_URL = 'https://saketh916-model.hf.space';
+      const API_ENDPOINT = '/scrape'; // Or whatever your Flask route is
+
+      const response = await axios.post(`${HF_SPACE_URL}${API_ENDPOINT}`, { productUrl: url });
 
       await axios.post(
         'https://fdb-node.vercel.app/api/search-history',

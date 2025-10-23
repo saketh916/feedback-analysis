@@ -4,7 +4,7 @@ FROM python:3.10-slim
 # Set working directory
 WORKDIR /app
 
-# Install Chrome + dependencies (Debian 12+ compatible)
+# Install Chrome and necessary dependencies (Debian 12+ compatible)
 RUN apt-get update && apt-get install -y \
     chromium \
     chromium-driver \
@@ -29,13 +29,31 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Install SpaCy English model
 RUN python -m spacy download en_core_web_sm
 
-# Copy app files
-COPY . .
+# ----------------------------------------------------
+# CRITICAL FIXES FOR HUGGING FACE SPACES DEPLOYMENT
+# ----------------------------------------------------
+
+# 1. Create a non-root user for security
+# This is a general best practice for container security.
+RUN useradd -m -u 1000 user
+USER user
+
+# 2. Fix the PermissionError (Model Loading)
+# Setting HF_HOME tells the Hugging Face libraries where to safely cache models
+# in a location the new 'user' has write access to, preventing "PermissionError at /.cache".
+ENV HF_HOME /app/.cache/huggingface
+
+# ----------------------------------------------------
+
+# Copy application files, model weights, and scripts
+# Use --chown to ensure the files belong to the new 'user'
+COPY --chown=user:user . .
 
 # Expose Hugging Face Space port
 EXPOSE 7860
 
-# Environment variable for Chromium (needed for undetected_chromedriver)
+# Environment variables for Chromium/Chromedriver
+# Use the paths set by the apt-get install
 ENV CHROME_PATH=/usr/bin/chromium
 ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
