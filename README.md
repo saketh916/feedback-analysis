@@ -58,17 +58,17 @@ npm install
 Create a `.env` file in the `backend` directory and add your MongoDB connection string:
 
 ```env
-mongoURI=mongodb://localhost:27017/Feedback_Analysis
+mongoURI=your_mongoDB_uri
 ```
 
 Run the backend server:
 
 ```bash
 node server.js
-# Server will be running on http://localhost:5005
+# Server will be running on http://localhost:5000
 ```
 
-### 2. ML Service Setup
+### 2. ML folder Setup
 
 ```bash
 # Navigate to the ml directory
@@ -86,13 +86,14 @@ Create a `.env` file in the `ml` directory and add your Hugging Face API token a
 ```env
 HF_API_TOKEN=your_hugging_face_api_token
 API_URL=https://api-inference.huggingface.co/models/facebook/bart-large-cnn
+MONGO_URI=your_mongoDB_uri
 ```
 
 Run the ML service:
 
 ```bash
 python app.py
-# Server will be running on http://localhost:5000
+# Server will be running on http://localhost:8000
 ```
 
 ### 3. Frontend Setup
