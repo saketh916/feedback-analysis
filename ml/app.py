@@ -32,7 +32,7 @@ CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 # ----------------------------------------------------------------------------- #
 # ⚙️ MongoDB setup
 # ----------------------------------------------------------------------------- #
-mongo_uri = os.getenv("MONGO_URI", "mongodb+srv://chatlasaketh916:harshith143@cluster1.s19hs.mongodb.net/?retryWrites=true&w=majority&appName=cluster1")
+mongo_uri = os.getenv("MONGO_URI","YOUR_URI")
 mongo_db = os.getenv("MONGO_DB", "Feedback_Analysis")
 mongo_collection = os.getenv("MONGO_COLLECTION", "searchhistories")
 
