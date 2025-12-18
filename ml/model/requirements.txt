@@ -1,0 +1,14 @@
+flask
+torch
+joblib
+pandas
+selenium
+undetected-chromedriver
+flask-cors
+spacy
+transformers
+numpy
+scikit-learn
+requests
+python-dotenv
+pymongo

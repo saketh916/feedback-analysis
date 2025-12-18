@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { ChartBarIcon, ChatBubbleBottomCenterTextIcon, BoltIcon } from '@heroicons/react/24/outline';
+import { ChartBarIcon, ChatBubbleBottomCenterTextIcon, BoltIcon, SparklesIcon, LinkIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 
 const features = [
-  { name: 'Advanced Analytics', description: 'Get deep insights into customer sentiment and key topics.', icon: ChartBarIcon },
-  { name: 'Real-time Processing', description: 'Analyze feedback as it comes in, staying ahead of trends.', icon: BoltIcon },
-  { name: 'AI-Powered Summaries', description: 'Generate concise, actionable summaries from complex feedback.', icon: ChatBubbleBottomCenterTextIcon },
+  { name: 'Advanced Analytics', description: 'Get deep insights into customer sentiment and key topics.', icon: ChartBarIcon, gradient: 'from-purple-500 to-pink-500' },
+  { name: 'Real-time Processing', description: 'Analyze feedback as it comes in, staying ahead of trends.', icon: BoltIcon, gradient: 'from-blue-500 to-cyan-500' },
+  { name: 'AI-Powered Summaries', description: 'Generate concise, actionable summaries from complex feedback.', icon: ChatBubbleBottomCenterTextIcon, gradient: 'from-orange-500 to-red-500' },
 ];
 
 const testimonials = [
@@ -36,13 +36,13 @@ export default function LandingPage() {
     const userEmail = localStorage.getItem('userEmail');
 
     try {
-      const HF_SPACE_URL = 'https://saketh916-model.hf.space';
-      const API_ENDPOINT = '/scrape'; // Or whatever your Flask route is
+      const HF_SPACE_URL = 'http://localhost:8000';
+      const API_ENDPOINT = '/scrape';
 
       const response = await axios.post(`${HF_SPACE_URL}${API_ENDPOINT}`, { productUrl: url });
 
       await axios.post(
-        'https://fdb-node.vercel.app/api/search-history',
+        'http://localhost:5000/api/search-history',
         {
           userEmail,
           searchUrl: url,
@@ -66,60 +66,46 @@ export default function LandingPage() {
     }
   };
 
+  const getSentimentColor = (sentiment) => {
+    if (sentiment?.toLowerCase().includes('positive')) return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+    if (sentiment?.toLowerCase().includes('negative')) return 'bg-red-100 text-red-800 border-red-300';
+    return 'bg-blue-100 text-blue-800 border-blue-300';
+  };
+
   return (
-    <div className="bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Hero Section */}
-      <div className="relative bg-white overflow-hidden">
-        <div className="max-w-7xl mx-auto">
-          <div className="relative z-10 pb-8 bg-white sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32">
-            <main className="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
-              <div className="sm:text-center lg:text-left">
-                <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
-                  <span className="block xl:inline">Unlock the power of</span>{' '}
-                  <span className="block text-indigo-600 xl:inline">customer feedback</span>
-                </h1>
-                <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
-                  Our AI-powered feedback analysis tool helps you understand your customers better than ever before.
-                </p>
-                <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
-                  <div className="rounded-md shadow">
-                    <Link
-                      to="/login"
-                      className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 md:py-4 md:text-lg md:px-10"
-                    >
-                      Get started
-                    </Link>
-                  </div>
-                  <div className="mt-3 sm:mt-0 sm:ml-3">
-                    <a
-                      href="#how-it-works"
-                      className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 md:py-4 md:text-lg md:px-10"
-                    >
-                      Learn more
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </main>
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/10 via-purple-600/10 to-pink-600/10"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+          <div className="text-center">
+            <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-semibold mb-6 shadow-lg">
+              <SparklesIcon className="w-5 h-5 mr-2" />
+              AI-Powered Feedback Analysis
+            </div>
+            <h1 className="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 mb-6 leading-tight">
+              Unlock Customer Insights
+            </h1>
+            <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-10 font-light">
+              Transform customer feedback into actionable intelligence with cutting-edge AI analysis
+            </p>
           </div>
         </div>
       </div>
 
       {/* URL Input Section */}
-      <div className="bg-gray-100 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto">
-            <form onSubmit={handleSubmit} className="mt-8 sm:flex relative">
-              <label htmlFor="url" className="sr-only">
-                Product URL
-              </label>
-              <div className="relative w-full">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 mb-16">
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 p-8">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 relative">
+                <LinkIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
                   name="url"
                   id="url"
-                  className="block w-full py-3 px-3 text-base rounded-md placeholder-gray-500 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 border-gray-300 pr-10"
-                  placeholder="Enter product URL"
+                  className="w-full pl-12 pr-12 py-4 text-lg rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all bg-white/50 backdrop-blur-sm placeholder-gray-400"
+                  placeholder="Paste product URL from Amazon or Flipkart..."
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   required
@@ -128,155 +114,186 @@ export default function LandingPage() {
                   <button
                     type="button"
                     onClick={() => setUrl('')}
-                    className="absolute inset-y-0 right-0 px-3 flex items-center text-black-400 hover:text-black-800"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    X
+                    <XMarkIcon className="w-5 h-5 text-gray-400" />
                   </button>
                 )}
               </div>
-
               <button
                 type="submit"
-                className="mt-3 w-full px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:flex-shrink-0 sm:inline-flex sm:items-center sm:w-auto"
                 disabled={loading}
+                className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-lg min-w-[180px]"
               >
-                {loading ? 'Analyzing...' : 'Analyze Feedbacks'}
+                {loading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Analyzing...
+                  </span>
+                ) : (
+                  'Analyze Now'
+                )}
               </button>
-            </form>
-            {message && <p className="mt-4 text-green-500">{message}</p>}
-          </div>
+            </div>
+            {message && (
+              <div className={`p-4 rounded-xl ${message.includes('Successfully') || message.includes('success') ? 'bg-emerald-50 border-2 border-emerald-200 text-emerald-800' : 'bg-red-50 border-2 border-red-200 text-red-800'}`}>
+                <div className="flex items-center">
+                  {message.includes('Successfully') || message.includes('success') ? (
+                    <CheckCircleIcon className="w-5 h-5 mr-2" />
+                  ) : null}
+                  <span className="font-medium">{message}</span>
+                </div>
+              </div>
+            )}
+          </form>
         </div>
       </div>
 
-
-      {/* Summary */}
-      {summary && (
-        <div className="bg-white py-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Review Summary</h2>
-            <p className="text-gray-700 text-lg">{summary}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Key Phrases */}
-      {keyphrases?.length > 0 && (
-        <div className="bg-white py-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Key Phrases</h2>
-            <div className="flex flex-wrap gap-2">
-              {keyphrases.map((phrase, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800"
-                >
-                  {phrase}
-                </span>
-              ))}
+      {/* Results Section */}
+      {(summary || keyphrases?.length > 0 || overallSentiment || reviews?.length > 0) && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16 space-y-8">
+          {/* Summary Card */}
+          {summary && (
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-8">
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4 flex items-center">
+                <ChatBubbleBottomCenterTextIcon className="w-8 h-8 mr-3 text-indigo-600" />
+                Review Summary
+              </h2>
+              <p className="text-gray-700 text-lg leading-relaxed">{summary}</p>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Overall Sentiment */}
-      {overallSentiment && (
-        <div className="bg-white py-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Overall Sentiment</h2>
-            <span className="inline-flex items-center px-4 py-2 rounded-full text-lg font-medium bg-indigo-100 text-indigo-800">
-              {overallSentiment}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Reviews */}
-      {reviews?.length > 0 && (
-        <div className="bg-white py-12">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-extrabold text-gray-900 mb-6">Analyzed Reviews</h2>
-            <div className="grid gap-6 lg:grid-cols-2">
-              {reviews.map((review, index) => {
-                const reviewText = review?.review_text ?? 'No review';
-                const shortText = reviewText.slice(0, 300);
-                const expanded = expandedReviews[index] || false;
-
-                const toggleExpand = () => {
-                  const newExpanded = [...expandedReviews];
-                  newExpanded[index] = !newExpanded[index];
-                  setExpandedReviews(newExpanded);
-                };
-
-                return (
-                  <div key={index} className="bg-gray-50 rounded-lg shadow p-6">
-                    <p className="text-sm text-gray-600 mb-2">Rating: {review?.rating ?? 'N/A'}</p>
-                    <p className="text-sm font-bold mb-2">{review?.review_title ?? 'No title'}</p>
-                    <p className="text-gray-800 mb-2">
-                      {expanded ? reviewText : shortText}
-                      {reviewText.length > 300 && !expanded ? '...' : ''}
-                    </p>
-                    {reviewText.length > 300 && (
-                      <button
-                        className="text-indigo-600 font-medium text-sm hover:underline"
-                        onClick={toggleExpand}
-                        type="button"
+          {/* Key Phrases & Sentiment Row */}
+          {(keyphrases?.length > 0 || overallSentiment) && (
+            <div className="grid md:grid-cols-2 gap-6">
+              {keyphrases?.length > 0 && (
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-8">
+                  <h2 className="text-2xl font-bold text-gray-800 mb-4">Key Insights</h2>
+                  <div className="flex flex-wrap gap-3">
+                    {keyphrases.map((phrase, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-800 border border-indigo-200 shadow-sm hover:shadow-md transition-shadow"
                       >
-                        {expanded ? 'Show Less' : 'Read More'}
-                      </button>
-                    )}
+                        {phrase}
+                      </span>
+                    ))}
                   </div>
-                );
-              })}
+                </div>
+              )}
+
+              {overallSentiment && (
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-8">
+                  <h2 className="text-2xl font-bold text-gray-800 mb-4">Overall Sentiment</h2>
+                  <div className={`inline-flex items-center px-6 py-3 rounded-xl text-lg font-bold border-2 ${getSentimentColor(overallSentiment)} shadow-md`}>
+                    {overallSentiment}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          )}
+
+          {/* Reviews Grid */}
+          {reviews?.length > 0 && (
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-8">
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-6">
+                Analyzed Reviews ({reviews.length})
+              </h2>
+              <div className="grid gap-6 md:grid-cols-2">
+                {reviews.map((review, index) => {
+                  const reviewText = review?.review_text ?? 'No review';
+                  const shortText = reviewText.slice(0, 200);
+                  const expanded = expandedReviews[index] || false;
+                  const rating = review?.rating ?? 0;
+
+                  const toggleExpand = () => {
+                    const newExpanded = [...expandedReviews];
+                    newExpanded[index] = !newExpanded[index];
+                    setExpandedReviews(newExpanded);
+                  };
+
+                  return (
+                    <div key={index} className="bg-gradient-to-br from-gray-50 to-white rounded-xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all duration-300">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`px-3 py-1 rounded-lg font-bold text-sm ${
+                            rating >= 4 ? 'bg-emerald-100 text-emerald-700' :
+                            rating >= 3 ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            ⭐ {rating || 'N/A'}
+                          </div>
+                        </div>
+                      </div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-3">{review?.review_title ?? 'No title'}</h3>
+                      <p className="text-gray-700 mb-4 leading-relaxed">
+                        {expanded ? reviewText : shortText}
+                        {reviewText.length > 200 && !expanded ? '...' : ''}
+                      </p>
+                      {reviewText.length > 200 && (
+                        <button
+                          className="text-indigo-600 font-semibold text-sm hover:text-indigo-800 transition-colors flex items-center"
+                          onClick={toggleExpand}
+                          type="button"
+                        >
+                          {expanded ? 'Show Less' : 'Read More'}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Features Section */}
-      <div id="features" className="py-12 bg-white">
+      <div id="features" className="py-20 bg-white/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="lg:text-center">
-            <h2 className="text-base text-indigo-600 font-semibold tracking-wide uppercase">Features</h2>
-            <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-              A better way to understand your customers
-            </p>
-            <p className="mt-4 max-w-2xl text-xl text-gray-500 lg:mx-auto">
-              Our platform uses cutting-edge AI to analyze and summarize customer feedback, giving you actionable insights.
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-4">
+              Powerful Features
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Everything you need to understand your customers at a glance
             </p>
           </div>
-          <div className="mt-10">
-            <dl className="space-y-10 md:space-y-0 md:grid md:grid-cols-3 md:gap-x-8 md:gap-y-10">
-              {features.map((feature) => (
-                <div key={feature.name} className="relative">
-                  <dt>
-                    <div className="absolute flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white">
-                      <feature.icon className="h-6 w-6" aria-hidden="true" />
-                    </div>
-                    <p className="ml-16 text-lg leading-6 font-medium text-gray-900">{feature.name}</p>
-                  </dt>
-                  <dd className="mt-2 ml-16 text-base text-gray-500">{feature.description}</dd>
+          <div className="grid md:grid-cols-3 gap-8">
+            {features.map((feature) => (
+              <div key={feature.name} className="group relative bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-indigo-200">
+                <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${feature.gradient} rounded-t-2xl`}></div>
+                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-r ${feature.gradient} text-white mb-6 shadow-lg group-hover:scale-110 transition-transform`}>
+                  <feature.icon className="h-8 w-8" />
                 </div>
-              ))}
-            </dl>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">{feature.name}</h3>
+                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
       {/* Testimonials Section */}
-      <div id="testimonials" className="bg-white py-12">
+      <div id="testimonials" className="py-20 bg-gradient-to-br from-indigo-50 to-purple-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-12">What our customers are saying</h2>
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+          <h2 className="text-4xl md:text-5xl font-black text-center text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-16">
+            What Our Customers Say
+          </h2>
+          <div className="grid md:grid-cols-2 gap-8">
             {testimonials.map((testimonial) => (
-              <div key={testimonial.name} className="bg-gray-50 rounded-lg shadow-lg p-6">
-                <div className="flex items-center mb-4">
-                  <img className="h-12 w-12 rounded-full mr-4" src={testimonial.image} alt={testimonial.name} />
+              <div key={testimonial.name} className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all">
+                <div className="flex items-center mb-6">
+                  <img className="h-16 w-16 rounded-full ring-4 ring-indigo-100 mr-4" src={testimonial.image} alt={testimonial.name} />
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900">{testimonial.name}</h3>
-                    <p className="text-indigo-600">{testimonial.role}</p>
+                    <h3 className="text-xl font-bold text-gray-900">{testimonial.name}</h3>
+                    <p className="text-indigo-600 font-medium">{testimonial.role}</p>
                   </div>
                 </div>
-                <p className="text-gray-600 italic">"{testimonial.quote}"</p>
+                <p className="text-gray-700 text-lg leading-relaxed italic">"{testimonial.quote}"</p>
               </div>
             ))}
           </div>

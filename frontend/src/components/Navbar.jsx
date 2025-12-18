@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Home, Sparkles, Clock, LogOut, User } from 'lucide-react';
 
 const navigation = [
-  { name: 'Home', id: 'home' },
-  { name: 'Features', id: 'features' },
-  { name: 'How It Works', id: 'how-it-works' },
-  { name: 'Testimonials', id: 'testimonials' },
+  { name: 'Home', id: 'home', icon: Home },
+  { name: 'Features', id: 'features', icon: Sparkles },
+  { name: 'Testimonials', id: 'testimonials', icon: Sparkles },
 ];
 
 export default function Navbar({ isLoggedIn, setIsLoggedIn }) {
@@ -23,10 +22,8 @@ export default function Navbar({ isLoggedIn, setIsLoggedIn }) {
     navigate('/login');
   };
 
-  // Update email on login
   useEffect(() => setUserEmail(localStorage.getItem('userEmail')), [isLoggedIn]);
 
-  // Navbar scroll effect
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
@@ -35,11 +32,9 @@ export default function Navbar({ isLoggedIn, setIsLoggedIn }) {
 
   if (!isLoggedIn) return null;
 
-  // Smooth scroll to section
   const handleScrollTo = (id) => {
     if (window.location.pathname !== '/home') {
       navigate('/home');
-      // Scroll after navigation delay
       setTimeout(() => {
         const el = document.getElementById(id);
         if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -48,43 +43,65 @@ export default function Navbar({ isLoggedIn, setIsLoggedIn }) {
       const el = document.getElementById(id);
       if (el) el.scrollIntoView({ behavior: 'smooth' });
     }
-    setIsOpen(false); // Close mobile menu
+    setIsOpen(false);
   };
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/90 backdrop-blur-md shadow-md' : ''}`}>
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      isScrolled 
+        ? 'bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20' 
+        : 'bg-transparent'
+    }`}>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
+        <div className="flex justify-between h-20 items-center">
           {/* Logo */}
-          <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => handleScrollTo('home')}>
-            <img className="h-8 w-auto" src="/logo.png" alt="Logo" />
-            <span className="ml-2 text-xl font-bold text-gray-800">Feedback Analysis</span>
+          <div 
+            className="flex-shrink-0 flex items-center cursor-pointer group" 
+            onClick={() => navigate('/home')}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl shadow-lg group-hover:scale-110 transition-transform">
+                <img className="h-6 w-6" src="/logo.png" alt="Logo" />
+              </div>
+              <span className="text-xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                FeedbackAI
+              </span>
+            </div>
           </div>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex space-x-6">
+          <nav className="hidden md:flex items-center space-x-2">
             {navigation.map((item) => (
               <button
                 key={item.name}
                 onClick={() => handleScrollTo(item.id)}
-                className="text-gray-500 hover:text-indigo-600 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
               >
+                <item.icon className="w-4 h-4" />
                 {item.name}
               </button>
             ))}
-            <button onClick={() => navigate('/history')} className="text-gray-500 hover:text-indigo-600 transition-colors">
-              Search History
+            <button 
+              onClick={() => navigate('/history')} 
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+            >
+              <Clock className="w-4 h-4" />
+              History
             </button>
           </nav>
 
           {/* Desktop user info */}
           <div className="hidden md:flex items-center space-x-4">
-            <span className="text-gray-600 truncate max-w-xs">{userEmail}</span>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100">
+              <User className="w-4 h-4 text-indigo-600" />
+              <span className="text-sm font-medium text-gray-700 truncate max-w-xs">{userEmail}</span>
+            </div>
             <button
               onClick={handleLogout}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-sm font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
             >
-              Log out
+              <LogOut className="w-4 h-4" />
+              Logout
             </button>
           </div>
 
@@ -92,7 +109,7 @@ export default function Navbar({ isLoggedIn, setIsLoggedIn }) {
           <div className="md:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+              className="inline-flex items-center justify-center p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors"
             >
               <span className="sr-only">Open main menu</span>
               {isOpen ? <X className="block h-6 w-6" /> : <Menu className="block h-6 w-6" />}
@@ -103,30 +120,37 @@ export default function Navbar({ isLoggedIn, setIsLoggedIn }) {
 
       {/* Mobile menu */}
       {isOpen && (
-        <div className="md:hidden bg-white/95 backdrop-blur-md shadow-lg z-50">
-          <div className="px-2 pt-2 pb-3 space-y-1">
+        <div className="md:hidden bg-white/95 backdrop-blur-xl shadow-2xl border-t border-gray-200">
+          <div className="px-4 pt-4 pb-6 space-y-2">
             {navigation.map((item) => (
               <button
                 key={item.name}
                 onClick={() => handleScrollTo(item.id)}
-                className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl text-base font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-all"
               >
+                <item.icon className="w-5 h-5" />
                 {item.name}
               </button>
             ))}
             <button
               onClick={() => { navigate('/history'); setIsOpen(false); }}
-              className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+              className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl text-base font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-all"
             >
-              Search History
+              <Clock className="w-5 h-5" />
+              History
             </button>
           </div>
-          <div className="pt-4 pb-3 border-t border-gray-200">
+          <div className="pt-4 pb-4 px-4 border-t border-gray-200 space-y-2">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 mb-2">
+              <User className="w-5 h-5 text-indigo-600" />
+              <span className="text-sm font-medium text-gray-700 truncate">{userEmail}</span>
+            </div>
             <button
               onClick={() => { handleLogout(); setIsOpen(false); }}
-              className="block w-full px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+              className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-base font-semibold text-white bg-gradient-to-r from-red-500 to-pink-500 shadow-lg"
             >
-              Log out
+              <LogOut className="w-5 h-5" />
+              Logout
             </button>
           </div>
         </div>

@@ -134,5 +134,5 @@ app.get('/api/user-profile', authenticate, (req, res) => {
 });
 
 // Start the Server
-const PORT = 5005;
+const PORT = 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

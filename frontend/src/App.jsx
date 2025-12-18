@@ -18,10 +18,10 @@ const App = () => {
 
   return (
     <Router>
-      <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="min-h-screen flex flex-col">
         {isLoggedIn && <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />}
 
-        <main className="flex-grow">
+        <main className={`flex-grow ${isLoggedIn ? 'pt-20' : ''}`}>
           <Routes>
             {/* Direct access to Login Page if not logged in */}
             <Route 
@@ -50,11 +50,13 @@ const App = () => {
           </Routes>
         </main>
 
-        <footer className="bg-gray-800 text-white py-8">
-          <div className="container mx-auto px-4 text-center">
-            <p>&copy; 2025 Feedback Analysis Project. All rights reserved.</p>
-          </div>
-        </footer>
+        {isLoggedIn && (
+          <footer className="bg-gradient-to-r from-indigo-900 via-purple-900 to-pink-900 text-white py-8 mt-16">
+            <div className="container mx-auto px-4 text-center">
+              <p className="text-gray-300">&copy; 2025 Feedback Analysis Project. All rights reserved.</p>
+            </div>
+          </footer>
+        )}
       </div>
     </Router>
   );

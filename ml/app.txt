@@ -1,0 +1,442 @@
+#!/usr/bin/env python3
+"""
+Robust feedback-scraper Flask app with undetected-chromedriver fallback strategies
+- Resolves amzn.in short links (requests -> tiny browser fallback)
+- Tries explicit binary+driver -> discovered binary + webdriver-manager -> uc.Chrome()
+- Optional Mongo persistence (MONGO_URI env)
+- HuggingFace cache location set to avoid PermissionError in container environments
+"""
+import os
+import sys
+import time
+import traceback
+import warnings
+from datetime import datetime, timedelta
+from statistics import mode as stat_mode
+
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+
+import torch
+import pandas as pd
+import numpy as np
+import spacy
+from transformers import AutoTokenizer, AutoModel, pipeline
+from sklearn.metrics.pairwise import cosine_similarity
+
+# HTTP fallback for short link resolution
+import requests
+
+# Mongo
+import pymongo
+
+# Selenium / undetected-chromedriver
+import undetected_chromedriver as uc
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.chrome.service import Service as ChromeService
+
+# webdriver-manager is optional; if not available we'll handle that gracefully
+try:
+    from webdriver_manager.chrome import ChromeDriverManager  # type: ignore
+    WEBDRIVER_MANAGER_AVAILABLE = True
+except Exception:
+    WEBDRIVER_MANAGER_AVAILABLE = False
+
+# ---------------------- config / env defaults ----------------------
+warnings.filterwarnings("ignore", category=ResourceWarning)
+
+# avoid tokenizers parallelism warning spaming logs in multiprocess envs
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+# force HF cache location (should be writable by container user)
+os.environ.setdefault("HF_HOME", os.getenv("HF_HOME", "/app/.cache/huggingface"))
+
+MONGO_URI = os.getenv("MONGO_URI", "")  # set in Secrets/.env if you want persistence
+MONGO_DB = os.getenv("MONGO_DB", "Feedback_Analysis")
+MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "searchhistories")
+
+# Chrome/driver defaults (Dockerfile in many spaces uses these)
+CHROME_PATH = os.getenv("CHROME_PATH", "/usr/bin/chromium")
+CHROMEDRIVER_PATH = os.getenv("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")
+
+# places to probe for chrome exe (works on Linux and Windows)
+LOCAL_CHROME_CANDIDATES = [
+    CHROME_PATH,
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+]
+
+# ---------------------- Flask + DB ----------------------
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+mongo_client = None
+search_history = None
+if MONGO_URI:
+    try:
+        mongo_client = pymongo.MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        db = mongo_client.get_database(MONGO_DB)
+        search_history = db.get_collection(MONGO_COLLECTION)
+        # quick ping
+        mongo_client.admin.command("ping")
+        print("[INFO] MongoDB connected.")
+    except Exception as e:
+        print("[WARN] MongoDB connection failed (continuing without persistence):", e)
+        mongo_client = None
+        search_history = None
+else:
+    print("[INFO] No MONGO_URI set — running without persistence.")
+
+# ---------------------- Load NLP models once ----------------------
+print("[INFO] Loading NLP models (this may take a while)...")
+MODELS_LOADED = False
+try:
+    nlp = spacy.load("en_core_web_sm")
+    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    bert_model = AutoModel.from_pretrained("bert-base-uncased")
+    sentiment_pipeline = pipeline("sentiment-analysis")
+    MODELS_LOADED = True
+    print("[INFO] Models loaded successfully.")
+except Exception as e:
+    print("[ERROR] Failed to load NLP models:", e)
+    traceback.print_exc()
+    MODELS_LOADED = False
+
+# ---------------------- Helper utilities ----------------------
+def choose_chrome_binary():
+    """Return first existing chrome binary path from known candidates, or None."""
+    for p in LOCAL_CHROME_CANDIDATES:
+        if not p:
+            continue
+        try:
+            if os.path.exists(p):
+                print("[INFO] Found chrome binary:", p)
+                return p
+        except Exception:
+            continue
+    print("[WARN] No chrome binary found in candidates.")
+    return None
+
+def try_resolve_short_link_requests(url, timeout=6):
+    """
+    Try to resolve redirects using requests without starting a browser.
+    Returns final url or original on failure.
+    """
+    try:
+        resp = requests.head(url, allow_redirects=True, timeout=timeout)
+        if resp.status_code in (200, 301, 302):
+            return resp.url or url
+    except Exception:
+        pass
+    # try GET fallback (some short links require GET)
+    try:
+        resp = requests.get(url, allow_redirects=True, timeout=timeout)
+        return resp.url or url
+    except Exception:
+        return url
+
+def resolve_amzn_shortlink(url):
+    """
+    Resolve amzn.in short links:
+    1. Try requests-based redirect resolution (fast)
+    2. If that doesn't give an amazon URL, start a tiny headless browser to follow JS redirects
+    """
+    if "amzn.in" not in url:
+        return url
+
+    # 1) requests
+    final = try_resolve_short_link_requests(url)
+    if final and final != url and "amazon." in final:
+        print("[INFO] Short link resolved via requests ->", final)
+        return final
+
+    # 2) browser fallback
+    print("[INFO] Falling back to headless browser to resolve short link:", url)
+    driver, err = build_uc_driver(binary=CHROME_PATH, driver_path=CHROMEDRIVER_PATH, timeout=12)
+    if driver is None:
+        print("[WARN] Could not start browser to resolve short link:", err)
+        return url
+    try:
+        driver.get(url)
+        time.sleep(2)
+        final2 = driver.current_url
+        print("[INFO] Short link resolved via browser ->", final2)
+        return final2 or url
+    except Exception as e:
+        print("[WARN] Browser-based short link resolution failed:", e)
+        return url
+    finally:
+        try:
+            driver.quit()
+        except Exception:
+            pass
+
+def build_uc_driver(binary=None, driver_path=None, timeout=30):
+    """
+    Start an undetected_chromedriver Chrome instance.
+    Strategy:
+      1) If explicit binary AND explicit driver path exist -> use them
+      2) Else discover a binary and (if webdriver-manager available) install matching driver
+      3) Fallback to uc.Chrome() default (may fail in some sandboxes)
+    Returns (driver, error_msg). driver is None on failure.
+    """
+    # 1) explicit binary + driver_path
+    try:
+        if binary and driver_path and os.path.exists(binary) and os.path.exists(driver_path):
+            opts = ChromeOptions()
+            opts.binary_location = binary
+            opts.add_argument("--headless=new")
+            opts.add_argument("--no-sandbox")
+            opts.add_argument("--disable-dev-shm-usage")
+            opts.add_argument("--disable-gpu")
+            opts.add_argument("--window-size=1920,1080")
+            opts.add_argument("--disable-blink-features=AutomationControlled")
+            service = ChromeService(executable_path=driver_path)
+            driver = uc.Chrome(
+                options=opts,
+                driver_executable_path=driver_path,
+                browser_executable_path=binary,
+                service=service,
+                use_subprocess=False,
+            )
+            driver.set_page_load_timeout(timeout)
+            return driver, None
+    except Exception as e:
+        print("[WARN] explicit binary+driver attempt failed:", e)
+        traceback.print_exc()
+
+    # 2) discovered binary + webdriver-manager (if available)
+    try:
+        discovered = choose_chrome_binary()
+        if discovered:
+            if driver_path and os.path.exists(driver_path):
+                dp = driver_path
+            elif WEBDRIVER_MANAGER_AVAILABLE:
+                dp = ChromeDriverManager().install()
+            else:
+                dp = None
+
+            if dp:
+                opts = ChromeOptions()
+                opts.binary_location = discovered
+                opts.add_argument("--headless=new")
+                opts.add_argument("--no-sandbox")
+                opts.add_argument("--disable-dev-shm-usage")
+                opts.add_argument("--disable-gpu")
+                opts.add_argument("--window-size=1920,1080")
+                opts.add_argument("--disable-blink-features=AutomationControlled")
+                service = ChromeService(executable_path=dp)
+                driver = uc.Chrome(
+                    options=opts,
+                    driver_executable_path=dp,
+                    browser_executable_path=discovered,
+                    service=service,
+                    use_subprocess=False,
+                )
+                driver.set_page_load_timeout(timeout)
+                return driver, None
+    except Exception as e:
+        print("[WARN] discovered binary + webdriver-manager attempt failed:", e)
+        traceback.print_exc()
+
+    # 3) last resort uc.Chrome()
+    try:
+        opts = ChromeOptions()
+        opts.add_argument("--headless=new")
+        opts.add_argument("--no-sandbox")
+        opts.add_argument("--disable-dev-shm-usage")
+        opts.add_argument("--disable-gpu")
+        opts.add_argument("--window-size=1920,1080")
+        opts.add_argument("--disable-blink-features=AutomationControlled")
+        driver = uc.Chrome(options=opts)
+        driver.set_page_load_timeout(timeout)
+        return driver, None
+    except Exception as e:
+        print("[WARN] uc.Chrome fallback failed:", e)
+        traceback.print_exc()
+        return None, str(e)
+
+def normalize_reviews(reviews):
+    if not reviews:
+        return {"review_text": [], "rating": [], "review_title": []}
+    min_len = min(len(reviews.get("review_text", [])),
+                  len(reviews.get("rating", [])),
+                  len(reviews.get("review_title", [])))
+    return {
+        "review_text": reviews.get("review_text", [])[:min_len],
+        "rating": reviews.get("rating", [])[:min_len],
+        "review_title": reviews.get("review_title", [])[:min_len],
+    }
+
+def get_amazon_reviews(driver, url, max_pages=2):
+    """Lightweight scraping of visible reviews on page. Not exhaustive but works for many products."""
+    reviews = {"review_text": [], "rating": [], "review_title": []}
+    try:
+        driver.get(url)
+        time.sleep(2)
+        for _ in range(max_pages):
+            body_elems = driver.find_elements(By.CSS_SELECTOR, 'span[data-hook="review-body"]')
+            title_elems = driver.find_elements(By.CSS_SELECTOR, 'a[data-hook="review-title"], .review-title')
+            rating_elems = driver.find_elements(By.CSS_SELECTOR, '[data-hook="review-star-rating"], .review-rating')
+
+            for b in body_elems:
+                txt = b.text.strip()
+                if txt:
+                    reviews["review_text"].append(txt)
+
+            for t in title_elems:
+                reviews["review_title"].append(t.text.strip())
+
+            for r in rating_elems:
+                raw = r.get_attribute("textContent") or r.text or ""
+                raw = raw.replace(" out of 5 stars", "").strip()
+                try:
+                    reviews["rating"].append(float(raw))
+                except:
+                    reviews["rating"].append(None)
+
+            # try to click next reviews page
+            try:
+                nxt = driver.find_element(By.CSS_SELECTOR, 'li.a-last a')
+                if nxt:
+                    driver.execute_script("arguments[0].scrollIntoView();", nxt)
+                    time.sleep(0.5)
+                    nxt.click()
+                    time.sleep(1.5)
+                    continue
+            except Exception:
+                break
+    except Exception as e:
+        print("[WARN] get_amazon_reviews failure:", e)
+        traceback.print_exc()
+    return normalize_reviews(reviews)
+
+def get_bert_embedding(text):
+    inp = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
+    with torch.no_grad():
+        out = bert_model(**inp)
+    return out.last_hidden_state.mean(dim=1).squeeze().cpu().numpy()
+
+def extract_keyphrases(text, top_n=5):
+    try:
+        doc = nlp(text)
+        noun_phrases = [c.text for c in doc.noun_chunks]
+        if not noun_phrases:
+            return []
+        base = get_bert_embedding(text)
+        phrase_embs = [get_bert_embedding(p) for p in noun_phrases]
+        sims = cosine_similarity([base], phrase_embs)[0]
+        idx = np.argsort(sims)[::-1][:top_n]
+        return [noun_phrases[i] for i in idx]
+    except Exception as e:
+        print("[WARN] extract_keyphrases failed:", e)
+        return []
+
+def generate_summary(reviews):
+    """Lightweight summary: concat top reviews and truncate. Replace with a model if needed."""
+    try:
+        combined = " ".join(reviews)[:2000]
+        if not combined.strip():
+            return ""
+        return combined[:400].strip()
+    except Exception as e:
+        print("[WARN] generate_summary failed:", e)
+        return ""
+
+# ---------------------- Routes ----------------------
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "Feedback scraping API — POST /scrape with JSON {productUrl}"}), 200
+
+@app.route("/scrape", methods=["POST"])
+def scrape():
+    if not MODELS_LOADED:
+        return jsonify({"status": "error", "message": "Models not loaded yet"}), 503
+
+    data = request.get_json(force=True, silent=True)
+    if not data:
+        return jsonify({"status": "error", "message": "JSON body required"}), 400
+
+    product_url = data.get("productUrl")
+    if not product_url:
+        return jsonify({"status": "error", "message": "productUrl missing"}), 400
+
+    # only basic support for amazon / flipkart
+    if not ("amazon." in product_url or "flipkart." in product_url or "amzn.in" in product_url):
+        return jsonify({"status": "error", "message": "Unsupported site — only Amazon/Flipkart supported"}), 400
+
+    # resolve shortlink if needed
+    try:
+        if "amzn.in" in product_url:
+            product_url = resolve_amzn_shortlink(product_url)
+    except Exception:
+        pass
+
+    # start chrome driver (tries several strategies)
+    driver, err = build_uc_driver(binary=CHROME_PATH, driver_path=CHROMEDRIVER_PATH)
+    if driver is None:
+        return jsonify({"status": "error", "message": f"Browser start failed: {err}"}), 500
+
+    try:
+        if "amazon." in product_url:
+            reviews = get_amazon_reviews(driver, product_url, max_pages=2)
+        else:
+            reviews = {"review_text": [], "rating": [], "review_title": []}
+    finally:
+        try:
+            driver.quit()
+        except Exception:
+            pass
+
+    df = pd.DataFrame(reviews)
+    if df.empty or df["review_text"].apply(lambda x: bool(str(x).strip())).sum() == 0:
+        return jsonify({"status": "warning", "message": "No reviews found", "reviews": []}), 200
+
+    head_reviews = df["review_text"].head(7).tolist()
+    keyphrases = extract_keyphrases(" ".join(head_reviews), top_n=10)
+    summary = generate_summary(head_reviews)
+
+    sentiments = []
+    for t in df["review_text"]:
+        try:
+            label = sentiment_pipeline(str(t)[:512])[0]["label"]
+        except Exception:
+            label = "NEUTRAL"
+        sentiments.append(label)
+    df["predicted_sentiment"] = sentiments
+
+    try:
+        overall = stat_mode(sentiments)
+    except Exception:
+        overall = sentiments[0] if sentiments else "NEUTRAL"
+
+    response = {
+        "status": "success",
+        "total_reviews": len(df),
+        "overall_sentiment": overall,
+        "keyphrases": keyphrases,
+        "summary": summary,
+        "reviews": df.to_dict(orient="records"),
+    }
+
+    # persist (best-effort)
+    if search_history:
+        try:
+            search_history.insert_one({
+                "searchUrl": product_url,
+                "searchResponse": response,
+                "timestamp": datetime.utcnow()
+            })
+        except Exception as e:
+            print("[WARN] save to DB failed:", e)
+
+    return jsonify(response)
+
+# ---------------------- main ----------------------
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 7860))
+    app.run(host="0.0.0.0", port=port, debug=False)
